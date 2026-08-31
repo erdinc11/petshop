@@ -56,7 +56,7 @@ h3 { font-size: clamp(1.6rem, 2.3vw, 2.5rem); }
   transform: translateY(-160%);
 }
 .skip-link:focus { transform: translateY(0); }
-.page-shell { position: relative; overflow: hidden; }
+.page-shell { position: relative; z-index: 4; overflow: visible; }
 .section { position: relative; z-index: 2; width: var(--container); margin-inline: auto; }
 .kicker {
   margin-bottom: 22px;

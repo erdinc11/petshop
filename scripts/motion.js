@@ -66,15 +66,27 @@
   mm.add('(min-width: 900px)', () => {
     const section = document.querySelector('.store-story');
     const copy = document.querySelector('[data-pin-copy]');
-    if (!section || !copy) return undefined;
+    const image = section?.querySelector('.store-image');
+    if (!section || !copy || !image) return undefined;
+
     gsap.set(copy, { position: 'relative', top: 'auto' });
+
     const pin = ScrollTrigger.create({
-      trigger: section,
+      trigger: copy,
       start: 'top 120px',
-      end: 'bottom bottom-=100',
+      end: () => {
+        // Kırmızı tasma görselin altından yatay olarak geçiyor.
+        // Yazının tasma üzerine inip üst üste gelmesini engellemek için,
+        // yazının alt kenarının tasma hizasına (görselin altına) ulaşmadan güvenli bir mesafede durmasını sağlıyoruz.
+        const safeMargin = 70;
+        const maxTravel = (image.offsetTop + image.offsetHeight) - (copy.offsetTop + copy.offsetHeight) - safeMargin;
+        return `+=${Math.max(0, maxTravel)}`;
+      },
       pin: copy,
-      pinSpacing: false
+      pinSpacing: false,
+      invalidateOnRefresh: true
     });
+
     return () => pin.kill();
   });
 
@@ -124,6 +136,11 @@
   };
 
   setupLeash();
+  window.addEventListener('load', () => {
+    setupLeash();
+    ScrollTrigger.refresh();
+  });
+
   let resizeTimer;
   window.addEventListener('resize', () => {
     window.clearTimeout(resizeTimer);

@@ -19,7 +19,7 @@
 .leash-mobile .leash-body { stroke: url(#leashRedMobile); }
 .leash-weave { stroke: rgba(255, 242, 226, .15); stroke-width: 24; stroke-dasharray: 1.5 5; stroke-linecap: butt; }
 .leash-stitch { stroke: #f3bea1; stroke-width: 2.4; stroke-dasharray: 7 11; }
-.leash-clasp { position: absolute; top: 0; left: 0; display: block; width: 60px; height: 130px; overflow: visible; opacity: 0; pointer-events: none; filter: drop-shadow(0 6px 10px rgba(20, 28, 36, .28)); will-change: transform; transform-origin: 50% 17%; }
+.leash-clasp { position: absolute; top: 0; left: 0; z-index: 10; display: block; width: 60px; height: 130px; overflow: visible; opacity: 0; pointer-events: none; filter: drop-shadow(0 6px 10px rgba(20, 28, 36, .28)); will-change: transform; transform-origin: 50% 17%; }
 
 .js [data-reveal] { opacity: 0; transform: translateY(26px); }
 .no-gsap [data-reveal], .motion-ready [data-reveal].is-visible { opacity: 1; transform: none; }
