@@ -1,0 +1,24 @@
+:root {
+  --paper: #fff9ef;
+  --paper-deep: #f7eedf;
+  --ink: #24362f;
+  --ink-soft: #506259;
+  --sage: #789a78;
+  --sage-pale: #dce6d6;
+  --forest: #284d3c;
+  --sky: #7fafbd;
+  --sky-pale: #dbe9ec;
+  --plum: #6c3f62;
+  --plum-pale: #eadde7;
+  --orange: #e8a052;
+  --orange-pale: #f6dfbd;
+  --leash: #b93635;
+  --line: rgba(36, 54, 47, 0.17);
+  --shadow: 0 24px 60px rgba(55, 48, 37, 0.12);
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --container: min(1240px, calc(100vw - 64px));
+  --display: "Fraunces", Georgia, serif;
+  --body: "Outfit", "Avenir Next", sans-serif;
+  --ease: cubic-bezier(.22, 1, .36, 1);
+}
