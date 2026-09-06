@@ -12,7 +12,82 @@
     document.querySelectorAll('[data-reveal]').forEach((item) => item.classList.add('is-visible'));
   };
 
+  const getVisibleLeash = () => [...document.querySelectorAll('[data-leash-path]')]
+    .find((path) => getComputedStyle(path.closest('svg')).display !== 'none');
+
+  const buildLeashGeometry = () => {
+    const path = getVisibleLeash();
+    const pageShell = document.querySelector('.page-shell');
+    if (!path || !pageShell) return;
+
+    const svg = path.closest('svg');
+    const pageRect = pageShell.getBoundingClientRect();
+    const width = Math.max(1, Math.round(pageRect.width));
+    const height = Math.max(1, Math.round(pageShell.offsetHeight));
+    const mobile = svg.classList.contains('leash-mobile');
+    const side = mobile
+      ? Math.max(14, Math.min(30, width * .04))
+      : Math.max(36, Math.min(60, width * .042));
+    const right = width - side;
+    const boundaryGap = mobile ? 12 : 18;
+    // Yatay geçişi daha uzun bir dikey aralığa yayarak x eksenindeki hızı düşür.
+    const desiredTurnSpan = mobile ? 124 : 180;
+    const sections = [...pageShell.children]
+      .filter((element) => element.matches('section.section'));
+    const getSectionContentBottom = (section) => [...section.children].reduce(
+      (bottom, child) => Math.max(bottom, child.getBoundingClientRect().bottom - pageRect.top),
+      section.getBoundingClientRect().top - pageRect.top
+    );
+    const lastSection = sections[sections.length - 1];
+    const lastContent = lastSection?.querySelector('.visit-grid') || lastSection;
+    const contentBottom = lastContent
+      ? lastContent.getBoundingClientRect().bottom - pageRect.top
+      : height - boundaryGap;
+    const boundaries = sections.slice(0, -1).map((section) => {
+      const boundary = section.getBoundingClientRect().bottom - pageRect.top - boundaryGap;
+      const safeTurnStart = getSectionContentBottom(section) + (mobile ? 14 : 20);
+      const maxSafeSpan = Math.max(36, boundary - safeTurnStart);
+
+      return { boundary, span: Math.min(desiredTurnSpan, maxSafeSpan) };
+    });
+
+    let currentX = right;
+    let previousY = 30;
+    let d = `M ${currentX} ${previousY}`;
+
+    boundaries.forEach(({ boundary, span }, index) => {
+      const nextX = index % 2 === 0 ? side : right;
+      const turnStart = Math.max(previousY + 70, boundary - span);
+      const turnEnd = Math.min(boundary, turnStart + span);
+      d += ` L ${currentX} ${turnStart}`;
+      d += ` C ${currentX} ${turnStart + span * .45}, ${nextX} ${turnEnd - span * .45}, ${nextX} ${turnEnd}`;
+      d += ` L ${nextX} ${boundary}`;
+      currentX = nextX;
+      previousY = boundary;
+    });
+
+    const finalContentGap = mobile ? 24 : 32;
+    const desiredFinalSpan = mobile ? 118 : 160;
+    const finishTurnStart = Math.max(previousY + 70, contentBottom + finalContentGap);
+    const finishY = Math.min(
+      height - (mobile ? 20 : 28),
+      Math.max(finishTurnStart + desiredFinalSpan + 22, previousY + 120)
+    );
+    const finishSpan = Math.max(36, Math.min(desiredFinalSpan, finishY - finishTurnStart));
+    const finishTurnEnd = Math.min(finishY, finishTurnStart + finishSpan);
+    d += ` L ${currentX} ${finishTurnStart}`;
+    d += ` C ${currentX} ${finishTurnStart + finishSpan * .45}, ${width / 2} ${finishTurnEnd - finishSpan * .45}, ${width / 2} ${finishTurnEnd}`;
+    d += ` L ${width / 2} ${finishY}`;
+    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    svg.querySelectorAll('.leash-reveal, .leash-cast, .leash-edge, .leash-body, .leash-weave, .leash-stitch')
+      .forEach((leashPath) => leashPath.setAttribute('d', d));
+  };
+
+  buildLeashGeometry();
+
   if (reduceMotion || !window.gsap || !window.ScrollTrigger) {
+    window.addEventListener('load', buildLeashGeometry);
+    window.addEventListener('resize', buildLeashGeometry);
     revealWithoutGsap();
     return;
   }
@@ -75,9 +150,7 @@
       trigger: copy,
       start: 'top 120px',
       end: () => {
-        // Kırmızı tasma görselin altından yatay olarak geçiyor.
-        // Yazının tasma üzerine inip üst üste gelmesini engellemek için,
-        // yazının alt kenarının tasma hizasına (görselin altına) ulaşmadan güvenli bir mesafede durmasını sağlıyoruz.
+        // Yazının tasma kıvrımıyla üst üste gelmesini engellemek için güvenli bir mesafe bırakıyoruz.
         const safeMargin = 70;
         const maxTravel = (image.offsetTop + image.offsetHeight) - (copy.offsetTop + copy.offsetHeight) - safeMargin;
         return `+=${Math.max(0, maxTravel)}`;
@@ -90,10 +163,8 @@
     return () => pin.kill();
   });
 
-  const getVisibleLeash = () => [...document.querySelectorAll('[data-leash-path]')]
-    .find((path) => getComputedStyle(path.closest('svg')).display !== 'none');
-
   const setupLeash = () => {
+    buildLeashGeometry();
     const path = getVisibleLeash();
     const clasp = document.querySelector('[data-leash-clasp]');
     if (!path || !clasp) return;
@@ -105,14 +176,30 @@
 
     const RING_X = 30;
     const RING_Y = 13;
-    const placeClasp = (progress) => {
+    const viewBox = path.closest('svg').viewBox.baseVal;
+    const firstY = path.getPointAtLength(0).y;
+    const lastY = path.getPointAtLength(length).y;
+    const getLengthAtY = (targetY) => {
+      const clampedY = Math.max(firstY, Math.min(lastY, targetY));
+      let low = 0;
+      let high = length;
+
+      for (let index = 0; index < 22; index += 1) {
+        const middle = (low + high) / 2;
+        if (path.getPointAtLength(middle).y < clampedY) low = middle;
+        else high = middle;
+      }
+
+      return (low + high) / 2;
+    };
+    const placeClasp = (pathLength) => {
       const svg = path.closest('svg');
-      const point = path.getPointAtLength(length * progress);
+      const point = path.getPointAtLength(pathLength);
       const box = svg.getBoundingClientRect();
-      const viewBox = svg.viewBox.baseVal;
       const scaleX = box.width / viewBox.width;
       const scaleY = box.height / viewBox.height;
-      const swing = Math.sin(progress * Math.PI * 4) * 9;
+      const verticalProgress = (point.y - firstY) / Math.max(1, lastY - firstY);
+      const swing = Math.sin(verticalProgress * Math.PI * 4) * 9;
       gsap.set(clasp, {
         x: point.x * scaleX - RING_X * scaleX,
         y: point.y * scaleY - RING_Y * scaleY,
@@ -120,19 +207,23 @@
       });
     };
 
+    const updateLeash = (self) => {
+      const targetY = firstY + ((lastY - firstY) * self.progress);
+      const drawnLength = getLengthAtY(targetY);
+      gsap.set(path, { strokeDashoffset: length - drawnLength });
+      placeClasp(drawnLength);
+    };
+
     placeClasp(0);
-    gsap.to(path, {
-      strokeDashoffset: 0,
-      ease: 'none',
-      scrollTrigger: {
-        id: 'leash-draw',
-        trigger: '.page-shell',
-        start: 'top top',
-        end: 'bottom bottom',
-        scrub: true,
-        onUpdate: (self) => placeClasp(self.progress)
-      }
+    const leashTrigger = ScrollTrigger.create({
+      id: 'leash-draw',
+      trigger: '.page-shell',
+      start: 'top top',
+      end: 'bottom bottom',
+      scrub: true,
+      onUpdate: updateLeash
     });
+    updateLeash(leashTrigger);
   };
 
   setupLeash();
