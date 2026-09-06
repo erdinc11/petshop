@@ -37,8 +37,18 @@
   });
 
   const slides = [...document.querySelectorAll('[data-slide]')];
+  const carouselViewport = document.querySelector('.testimonial-viewport');
   const currentLabel = document.querySelector('[data-current-slide]');
   let currentSlide = 0;
+
+  const syncCarouselHeight = () => {
+    const activeSlide = slides[currentSlide];
+    if (!activeSlide || !carouselViewport) return;
+
+    const minHeight = parseFloat(getComputedStyle(carouselViewport).minHeight) || 0;
+    const height = Math.max(minHeight, activeSlide.scrollHeight);
+    carouselViewport.style.height = `${height}px`;
+  };
 
   const showSlide = (index) => {
     if (!slides.length) return;
@@ -49,10 +59,21 @@
       slide.setAttribute('aria-hidden', String(!current));
     });
     if (currentLabel) currentLabel.textContent = String(currentSlide + 1).padStart(2, '0');
+    syncCarouselHeight();
   };
 
   document.querySelector('[data-carousel-prev]')?.addEventListener('click', () => showSlide(currentSlide - 1));
   document.querySelector('[data-carousel-next]')?.addEventListener('click', () => showSlide(currentSlide + 1));
+
+  syncCarouselHeight();
+  window.addEventListener('load', syncCarouselHeight);
+  window.addEventListener('resize', syncCarouselHeight);
+  document.fonts?.ready.then(syncCarouselHeight);
+
+  if (window.ResizeObserver) {
+    const carouselResizeObserver = new ResizeObserver(syncCarouselHeight);
+    slides.forEach((slide) => carouselResizeObserver.observe(slide));
+  }
 
   const header = document.querySelector('[data-header]');
   let lastScroll = window.scrollY;
